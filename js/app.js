@@ -39,12 +39,13 @@ class UI {
         setTimeout(() => div.remove(),3000)
     }
 
-    printCitas(citas){
+    printCitas(request){
         this.refresCitas()
-        citas.forEach( cita => {
-            const newCitas = this.renderCitas(cita);
-            contentCitas.appendChild(newCitas);
-        })
+
+        request.onsuccess = () => { 
+
+            request.result.forEach( cita => contentCitas.appendChild(this.renderCitas(cita)))
+        }
     }
 
     refresCitas(){
@@ -102,7 +103,7 @@ class UI {
         <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
       </svg>
       `
-      btnDel.onclick = () => deleteCita(data_id);
+      btnDel.onclick = () => deleteCita(fecha);
 
         const btnEdit = document.createElement('button');
         btnEdit.classList.add('btn','btn-info');
@@ -156,7 +157,7 @@ class Citas {
             objStore.createIndex('fecha','fecha',{unique:false});
             objStore.createIndex('hora','hora',{unique: false});
             objStore.createIndex('sintomas','sintomas',{unique: false});
-            objStore.createIndex('data_id','data_id',{unique:true});
+            objStore.createIndex('data_id','data_id',{unique:false});
 
             console.log('schematic finish :)');
         }
@@ -181,25 +182,33 @@ class Citas {
     
     setCitas(cita) {
         //this.Colletors = [...this.Colletors,cita];
-
         const store = this.setTransaction()
         const request = store.add(cita);
-
-        console.log(request);
     }
 
-    delCita(id){
+    delCita(data_id){
+
+        const transaction = this.DB.transaction(['Store'],'readwrite');
+        // event 
+        //transaction.oncomplete = () => console.log('transaction hecha');
+        //transaction.onerror = () => console.log('algo salio mal');
+        // create onb store
+        let request = transaction.objectStore('Store').delete(data_id);
+
+        request.onsuccess = (e) => console.log(e)
+        request.onerror = (e) => console.log(e)
         
-        const store = this.setTransaction();
-        const request = store.delete(id);
     }
     updateCita(editada){
-        this.Colletors.forEach( cita => {
-            if(cita.data_id === editada.data_id)
-            {
-               cita = editada
-            }
-        })
+        // this.Colletors.forEach( cita => {
+        //     if(cita.data_id === editada.data_id)
+        //     {
+        //        cita = editada
+        //     }
+        // })
+
+        const request = this.setTransaction().put(editada)
+        return request
     }
 }
 
@@ -231,9 +240,9 @@ function handlers() {
         createDDBB()
         veterinaria.initDDB()
 
-        setTimeout(() => {
-            request = veterinaria.getCitas()
-            request.onsuccess = (e) => ui.printCitas(request.result);
+         setTimeout(() => {
+            ui.printCitas(veterinaria.getCitas());
+            console.log('comenzo')
         } ,1000)
 
     })
@@ -302,8 +311,8 @@ function formulario(e){
     {
 
 
-        veterinaria.updateCita({...citaObjs})
-
+        request = veterinaria.updateCita({...citaObjs})
+        request.onsuccess = e => ui.printAlert('edit saves','win')
         form.querySelector('button[type=submit]').textContent = 'Crear Citas';
         form.querySelector('button[type=submit]').classList.remove('btn-primary');
         form.querySelector('button[type=submit]').classList.add('btn-success');
@@ -316,8 +325,9 @@ function formulario(e){
     }
 
      
-    request = veterinaria.getCitas()
-    request.onsuccess = (e) => ui.printCitas(request.result);
+    // request = veterinaria.getCitas()
+    // request.onsuccess = (e) => ui.printCitas(request.result);
+    ui.printCitas(veterinaria.getCitas());
     form.reset()
     resetObjGlobal()
 }
@@ -333,11 +343,12 @@ function resetObjGlobal(){
     }
 }
 
-function deleteCita(id){
-    veterinaria.delCita(id)
+function deleteCita(cita){
+    veterinaria.delCita(cita)
 
-    request = veterinaria.getCitas()
-    request.onsuccess = (e) => ui.printCitas(request.result);
+    // request = veterinaria.getCitas()
+    // request.onsuccess = (e) => ui.printCitas(request.result);
+    ui.printCitas(veterinaria.getCitas());
 
     ui.printAlert('Cita delete','info')
 }
