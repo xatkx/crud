@@ -13,37 +13,13 @@ const contentCitas = document.querySelector('#citas');
 //ddbb
 let DB;
 // handlers
-handlers()
-function handlers() {
-    // init 
-
-    document.addEventListener('DOMContentLoaded', () => {
-  
-        //creando base de datos
-        createDDBB()
-    })
-
-    // handlers de los inputs del formulario 
-    mascotaInput.addEventListener('change', validated)
-    propietarioInput.addEventListener('change', validated)
-    telefonoInput.addEventListener('change', validated)
-    fechaInput.addEventListener('change', validated)
-    horaInput.addEventListener('change', validated)
-    sintomasInput.addEventListener('change', validated)
-
-    // form 
-
-    form.addEventListener('submit', formulario)
-
-    //
-}
 // classes
 
 class UI {
     printAlert(msj, type){
         const div = document.createElement('div');
         div.classList.add('alert','col-12','d-flex','justify-content-center','fixeddd')
-
+        
         if(type == 'err')
         {
             div.classList.add('alert-danger')
@@ -148,24 +124,74 @@ class UI {
 
         return div;
     }
-
+    
 }
 class Citas {
     constructor()
     {
         this.Colletors = [];
+
+        this.DB;
+
+    }
+
+    initDDB(){
+        
+        const DDB = indexedDB.open('Citas',1);
+
+        // si hay eerorres
+        DDB.onerror = () => console.log('error',DDB.result);
+
+        // si todo fuciona
+        DDB.onsuccess = () => this.DB = DDB.result;
+
+        // setting schematik
+        DDB.onupgradeneeded = e => {
+            this.DB = e.target.result;
+            const objStore = this.DB.createObjectStore('Store',{autoIncrement: true,keyPath:'uno'});
+
+            objStore.createIndex('mascota','mascota',{unique:false});
+            objStore.createIndex('propietario','propietario',{unique:false});
+            objStore.createIndex('telefono','telefono',{unique: false});
+            objStore.createIndex('fecha','fecha',{unique:false});
+            objStore.createIndex('hora','hora',{unique: false});
+            objStore.createIndex('sintomas','sintomas',{unique: false});
+            objStore.createIndex('data_id','data_id',{unique:true});
+
+            console.log('schematic finish :)');
+        }
     }
 
     getCitas(){
-        return this.Colletors;
+        const store = this.setTransaction();
+        const request = store.getAll();
+        return request
     }
 
+    setTransaction(){
+        const transaction = this.DB.transaction(['Store'],'readwrite');
+        // event 
+        //transaction.oncomplete = () => console.log('transaction hecha');
+        transaction.onerror = () => console.log('algo salio mal');
+        // create onb store
+        const store = transaction.objectStore('Store')
+
+        return store
+    }
+    
     setCitas(cita) {
-        this.Colletors = [...this.Colletors,cita];
+        //this.Colletors = [...this.Colletors,cita];
+
+        const store = this.setTransaction()
+        const request = store.add(cita);
+
+        console.log(request);
     }
 
     delCita(id){
-        this.Colletors = this.Colletors.filter( cita => cita.data_id != id);
+        
+        const store = this.setTransaction();
+        const request = store.delete(id);
     }
     updateCita(editada){
         this.Colletors.forEach( cita => {
@@ -183,17 +209,49 @@ const ui = new UI();
 const veterinaria = new Citas()
 // objs
 let citaObjs = {
-        mascota: '',
-        propietario: '',
-        telefono: 0,
-        fecha: '',
-        hora: '',
-        sintomas: '',
-    }
+    mascota: '',
+    propietario: '',
+    telefono: 0,
+    fecha: '',
+    hora: '',
+    sintomas: '',
+}
 
 
 // global var
 let modeEdit = false;
+
+handlers()
+function handlers() {
+    // init 
+
+    document.addEventListener('DOMContentLoaded', () => {
+  
+        //creando base de datos
+        createDDBB()
+        veterinaria.initDDB()
+
+        setTimeout(() => {
+            request = veterinaria.getCitas()
+            request.onsuccess = (e) => ui.printCitas(request.result);
+        } ,1000)
+
+    })
+
+    // handlers de los inputs del formulario 
+    mascotaInput.addEventListener('change', validated)
+    propietarioInput.addEventListener('change', validated)
+    telefonoInput.addEventListener('change', validated)
+    fechaInput.addEventListener('change', validated)
+    horaInput.addEventListener('change', validated)
+    sintomasInput.addEventListener('change', validated)
+
+    // form 
+
+    form.addEventListener('submit', formulario)
+
+    //
+}
 //funtion
 
 function validated(e) {
@@ -258,9 +316,8 @@ function formulario(e){
     }
 
      
-
-    ui.printCitas(veterinaria.getCitas())
-
+    request = veterinaria.getCitas()
+    request.onsuccess = (e) => ui.printCitas(request.result);
     form.reset()
     resetObjGlobal()
 }
@@ -278,7 +335,9 @@ function resetObjGlobal(){
 
 function deleteCita(id){
     veterinaria.delCita(id)
-    ui.printCitas(veterinaria.getCitas())
+
+    request = veterinaria.getCitas()
+    request.onsuccess = (e) => ui.printCitas(request.result);
 
     ui.printAlert('Cita delete','info')
 }
@@ -303,26 +362,26 @@ function EditCitas(citas) {
 }
 
 function createDDBB(){
-    const CitasDB = indexedDB.open('CitasDB',1);
-// si hay errores
-    CitasDB.onerror = e => console.log(e.target.result.error)
-// si todo sale bien
-    CitasDB.onsuccess = e => {
-        console.log(CitasDB.result)
-    };
+//     const CitasDB = indexedDB.open('CitasDB',1);
+// // si hay errores
+//     CitasDB.onerror = e => console.log(e.target.result.error)
+// // si todo sale bien
+//     CitasDB.onsuccess = e => {
+//         console.log(CitasDB.result)
+//     };
 
-// sett 
-    CitasDB.onupgradeneeded = e => {
-        const DB = e.target.result;
-        const createObjsstore = DB.createObjectStore('Citas',{ keyPath: 'citas', autoIncrement: true});
+// // sett 
+//     CitasDB.onupgradeneeded = e => {
+//         const DB = e.target.result;
+//         const createObjsstore = DB.createObjectStore('Citas',{ keyPath: 'citas', autoIncrement: true});
 
-        createObjsstore.createIndex('mascota','mascota',{unique: false});
-        createObjsstore.createIndex('propietario','propietario',{unique: false});
-        createObjsstore.createIndex('telefono','telefono',{unique: false});
-        createObjsstore.createIndex('fecha','fecha',{unique: false});
-        createObjsstore.createIndex('hora','hora',{unique: false});
-        createObjsstore.createIndex('sintomas','sintomas',{unique: false});
-        console.log('obj create finish :) ');
-    } 
+//         createObjsstore.createIndex('mascota','mascota',{unique: false});
+//         createObjsstore.createIndex('propietario','propietario',{unique: false});
+//         createObjsstore.createIndex('telefono','telefono',{unique: false});
+//         createObjsstore.createIndex('fecha','fecha',{unique: false});
+//         createObjsstore.createIndex('hora','hora',{unique: false});
+//         createObjsstore.createIndex('sintomas','sintomas',{unique: false});
+//         console.log('obj create finish :) ');
+//     } 
 
 }
